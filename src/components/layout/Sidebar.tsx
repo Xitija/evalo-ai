@@ -25,14 +25,14 @@ import {
 
 const AppSidebar = () => {
   const menuItems = [
-    {
-      title: 'Dashboard',
-      icon: LayoutDashboard,
-      href: '/dashboard'
-    },
+    // {
+    //   title: 'Dashboard',
+    //   icon: LayoutDashboard,
+    //   href: '/dashboard'
+    // },
     {
       title: 'Interviews',
-      icon: Users,
+      icon: LayoutDashboard,
       href: '/interviews'
     },
     {
@@ -40,11 +40,11 @@ const AppSidebar = () => {
       icon: FileText,
       href: '/interviews/new'
     },
-    {
-      title: 'Schedule',
-      icon: Calendar,
-      href: '/schedule'
-    },
+    // {
+    //   title: 'Schedule',
+    //   icon: Calendar,
+    //   href: '/schedule'
+    // },
     {
       title: 'Reports',
       icon: CheckCircle,
@@ -72,7 +72,7 @@ const AppSidebar = () => {
     <Sidebar>
       <SidebarHeader className="py-4 flex items-center justify-center border-b">
         <h2 className="font-bold text-xl text-primary">
-          HireZen<span className="text-aipurple-600">AI</span>
+          Evalo<span className="text-aipurple-600">AI</span>
         </h2>
       </SidebarHeader>
       <SidebarContent>
