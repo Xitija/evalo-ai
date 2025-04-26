@@ -16,6 +16,7 @@ import InterviewInsights from "./pages/InterviewInsights";
 import DetailView from "./pages/DetailView";
 import NotFound from "./pages/NotFound";
 import { APIProvider } from "./context/APIContext";
+import Reports from "./pages/Reports";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,9 @@ const App = () => (
                           path="/interviews/:id"
                           element={<DetailView />}
                         />
+                        <Route 
+                         path= "/reports"
+                         element= {<Reports/>}/>
                         <Route
                           path="/interview-insights/:id"
                           element={<InterviewInsights />}
