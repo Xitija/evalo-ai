@@ -25,7 +25,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 
 const ASSEMBLY_AI_API_KEY = import.meta.env.VITE_ASSEMBLY_AI_API_KEY; // Replace with your actual API key
-const TRANSCRIPTION_INTERVAL = 60000; // 30 seconds in milliseconds
+const TRANSCRIPTION_INTERVAL = 30000; // 30 seconds in milliseconds
 const SUGGESTION_API_URL = `${import.meta.env.VITE_API_BASE_URL}/suggestions`; // Your suggestion API endpoint
 
 const LiveInterview = () => {
@@ -338,14 +338,36 @@ const LiveInterview = () => {
     }
   };
 
-  const handleEndInterview = () => {
+  const handleEndInterview = async () => {
     setIsStarted(false); // This will trigger the stopRecording effect
+  
     if (suggestionUpdateIntervalRef.current) {
       clearInterval(suggestionUpdateIntervalRef.current);
       suggestionUpdateIntervalRef.current = null;
     }
+  
+    try {
+      await axios.post(
+        `https://evaloai-backend-production.up.railway.app/meeting/${id}/generate-report`,
+        {
+          audio: "string", // Replace "string" with actual audio if needed
+        },
+        {
+          headers: {
+            'accept': 'application/json',
+            'content-type': 'application/json',
+            // Other headers like user-agent, sec-* are usually automatically handled by browser
+            // You don't need them unless backend specifically checks for them
+          },
+        }
+      );
+      console.log('Report generated successfully');
+    } catch (error) {
+      console.error('Error generating report:', error);
+    }
+  
     navigate(`/interview-insights/${id}`);
-  };
+  };  
 
   const remainingTime = interviewDuration - elapsedTime;
   const timeRemainingPercent = (remainingTime / interviewDuration) * 100;
@@ -380,11 +402,11 @@ const LiveInterview = () => {
               </Button>
             )}
 
-            <AlertDialog>
+            {/* <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" disabled={!isStarted}>
+                <Button variant="destructive" size="sm" disabled={!isStarted} onClick={handleEndInterview}>
                   <X className="h-4 w-4 mr-1" />
-                  End Interview
+                  End Interview11
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -401,7 +423,16 @@ const LiveInterview = () => {
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
-            </AlertDialog>
+            </AlertDialog> */}
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={!isStarted}
+            onClick={handleEndInterview}
+          >
+          <X className="h-4 w-4 mr-1" />
+          End Interview
+        </Button>
           </div>
         </div>
       </div>
