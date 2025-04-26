@@ -446,8 +446,8 @@ const LiveInterview = () => {
           </div>
           <ScrollArea className="flex-1 pr-4">
             <div className="space-y-4">
-              {questionSets.length > 0 ? (
-                questionSets.map((question, index) => (
+              {questionSets?.length > 0 ? (
+                questionSets?.map((question, index) => (
                   <div key={index} className="space-y-1 animate-fade-in">
                     <p className="text-slate-700">{question}</p>
                   </div>
