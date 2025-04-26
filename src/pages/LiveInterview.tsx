@@ -24,9 +24,9 @@ import { Clock, ChevronRight, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 
-const ASSEMBLY_AI_API_KEY = process.env.VITE_ASSEMBLY_AI_API_KEY; // Replace with your actual API key
+const ASSEMBLY_AI_API_KEY = import.meta.env.VITE_ASSEMBLY_AI_API_KEY; // Replace with your actual API key
 const TRANSCRIPTION_INTERVAL = 60000; // 30 seconds in milliseconds
-const SUGGESTION_API_URL = `${process.env.VITE_API_BASE_URL}/suggestions`; // Your suggestion API endpoint
+const SUGGESTION_API_URL = `${import.meta.env.VITE_API_BASE_URL}/suggestions`; // Your suggestion API endpoint
 
 const LiveInterview = () => {
   const [meetingId, setMeetingId] = useState(null);
@@ -50,11 +50,9 @@ const LiveInterview = () => {
 
   const fetchMeetingDetails = useCallback(async (meetingId: string) => {
     try {
-      const response = await axios.get(`${process.env.VITE_API_BASE_URL}/meeting/${meetingId}`);
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/meeting/${meetingId}`);
       setMeetingDetails(response.data);
       const questions = response.data.meeting.expected_questions
-        .split(/\n\n/)
-        .map(q => q.trim());
       setQuestionSets(questions);
     } catch (error: any) {
       console.error('Error fetching meeting details:', error);
