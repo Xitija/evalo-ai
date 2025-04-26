@@ -72,7 +72,7 @@ const AppSidebar = () => {
     <Sidebar>
       <SidebarHeader className="py-4 flex items-center justify-center border-b">
         <h2 className="font-bold text-xl text-primary">
-          HireZen<span className="text-aipurple-600">AI</span>
+          Evalo<span className="text-aipurple-600">AI</span>
         </h2>
       </SidebarHeader>
       <SidebarContent>

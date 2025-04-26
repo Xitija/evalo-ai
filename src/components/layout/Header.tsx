@@ -55,7 +55,7 @@ const Header = ({ transparent = false }: HeaderProps) => {
           </Button>
           <Link to="/" className="flex items-center">
             <span className="font-bold text-xl text-primary">
-              HireZen<span className="text-aipurple-600">AI</span>
+              Evalo<span className="text-aipurple-600">AI</span>
             </span>
           </Link>
         </div>

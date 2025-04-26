@@ -135,7 +135,7 @@ const Landing = () => {
               How It Works
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              HireZenAI seamlessly integrates into your existing hiring workflow, 
+              EvaloAI seamlessly integrates into your existing hiring workflow, 
               making interviews more effective and decisions more objective.
             </p>
           </div>
@@ -197,7 +197,7 @@ const Landing = () => {
               What Our Customers Say
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Don't just take our word for it. See how HireZenAI has helped 
+              Don't just take our word for it. See how EvaloAI has helped 
               companies improve their hiring outcomes.
             </p>
           </div>
@@ -217,7 +217,7 @@ const Landing = () => {
                 avatar: "MC"
               },
               {
-                quote: "HireZenAI brought consistency to our interview process across departments. The objective skill assessments eliminated much of our previous bias.",
+                quote: "EvaloAI brought consistency to our interview process across departments. The objective skill assessments eliminated much of our previous bias.",
                 name: "Priya Sharma",
                 title: "HR Manager, Adobe",
                 avatar: "PS"
@@ -352,7 +352,7 @@ const Landing = () => {
             Ready to Transform Your Hiring Process?
           </h2>
           <p className="text-lg text-blue-50 mb-8 max-w-2xl mx-auto">
-            Join hundreds of companies using HireZenAI to make better hiring decisions.
+            Join hundreds of companies using EvaloAI to make better hiring decisions.
             Start your free trial today - no credit card required.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
