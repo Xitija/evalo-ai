@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
   Card, 
@@ -33,34 +33,27 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import PageContainer from '@/components/layout/PageContainer';
+import { useMeetingsById } from '@/hooks/useMeetingsById';
 
 const DetailView = () => {
   const [currentTab, setCurrentTab] = useState('overview');
-  
-  // Mock data
-  const interviewData = {
-    id: 1,
-    candidateName: "Alex Johnson",
-    jobTitle: "Senior Frontend Developer",
-    department: "Engineering",
-    status: "upcoming", // upcoming, completed, draft
-    date: "April 26, 2025",
-    time: "2:00 PM - 3:00 PM",
-    duration: "60 minutes",
-    interviewer: "Julie Parker",
-    skills: ["React", "JavaScript", "TypeScript", "CSS", "Testing", "Problem Solving"],
-    jobDescription: `We are looking for a Senior Frontend Developer with strong experience in React and modern JavaScript. The ideal candidate will have experience building complex, responsive web applications and collaborating with cross-functional teams.
+  const { id } = useParams<{ id: string }>(); // Get the meeting ID from the route
+  const { data, isLoading, error } = useMeetingsById(id || ""); // Fetch meeting details using the hook
 
-Responsibilities:
-- Develop and maintain complex React applications
-- Write clean, efficient, and reusable code
-- Collaborate with designers and backend developers
-- Optimize applications for maximum performance
-- Implement and maintain quality standards`,
-    candidateNotes: "Alex has 6 years of experience working with React and has led frontend teams at two startups. Previously worked at Adobe on their Creative Cloud web apps.",
-    resumeUrl: "#"
-  };
-  
+
+
+  if (isLoading) {
+    return <p>Loading...</p>;
+  }
+
+  if (error) {
+    return <p>Error: {error.message}</p>;
+  }
+
+  const interviewData = data?.meeting;
+
+  // Mock data
+ 
   const handleSendReminder = () => {
     toast({
       title: "Reminder sent",
@@ -75,31 +68,31 @@ Responsibilities:
           <h1 className="text-3xl font-bold tracking-tight">Interview Details</h1>
           <p className="text-muted-foreground flex items-center gap-1">
             <User className="h-4 w-4" />
-            {interviewData.candidateName} • {interviewData.jobTitle}
+            {interviewData.name} • {interviewData.role}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {interviewData.status === 'upcoming' && (
+          {/* {interviewData.status === 'upcoming' && ( */}
             <Button asChild>
-              <Link to="/interview/live/1">
+              <Link to={`/interview/live/${interviewData.id}`}>
                 Start Interview
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
-          )}
+          {/* )} */}
           {interviewData.status === 'completed' && (
             <Button asChild variant="outline">
-              <Link to="/interview-insights/1">
+              <Link to={`/interviews/${interviewData.id}`}>
                 View Report
               </Link>
             </Button>
           )}
-          <Button variant="outline" className="gap-2" asChild>
+          {/* <Button variant="outline" className="gap-2" asChild>
             <Link to="/interviews/edit/1">
               <Edit className="h-4 w-4" />
               Edit
             </Link>
-          </Button>
+          </Button> */}
         </div>
       </div>
       
@@ -109,7 +102,7 @@ Responsibilities:
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Interview Summary</CardTitle>
-                <Badge 
+                {/* <Badge 
                   variant={
                     interviewData.status === 'upcoming' ? 'default' : 
                     interviewData.status === 'completed' ? 'secondary' : 
@@ -118,19 +111,19 @@ Responsibilities:
                 >
                   {interviewData.status === 'upcoming' ? 'Upcoming' : 
                    interviewData.status === 'completed' ? 'Completed' : 'Draft'}
-                </Badge>
+                </Badge> */}
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
                   <span className="text-sm text-muted-foreground">Job Title</span>
-                  <span className="font-medium">{interviewData.jobTitle}</span>
+                  <span className="font-medium">{interviewData.role}</span>
                 </div>
-                <div className="flex flex-col gap-1">
+                {/* <div className="flex flex-col gap-1">
                   <span className="text-sm text-muted-foreground">Department</span>
                   <span className="font-medium">{interviewData.department}</span>
-                </div>
+                </div> */}
                 <div className="flex flex-col gap-1">
                   <span className="text-sm text-muted-foreground">Date</span>
                   <div className="flex items-center gap-1.5">
@@ -145,13 +138,13 @@ Responsibilities:
                     <span className="font-medium">{interviewData.time}</span>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1">
+                {/* <div className="flex flex-col gap-1">
                   <span className="text-sm text-muted-foreground">Duration</span>
                   <span className="font-medium">{interviewData.duration}</span>
-                </div>
+                </div> */}
                 <div className="flex flex-col gap-1">
                   <span className="text-sm text-muted-foreground">Interviewer</span>
-                  <span className="font-medium">{interviewData.interviewer}</span>
+                  <span className="font-medium">{interviewData.interviewer_name}</span>
                 </div>
               </div>
               
@@ -160,13 +153,13 @@ Responsibilities:
               <div>
                 <h3 className="font-medium mb-2">Required Skills</h3>
                 <div className="flex flex-wrap gap-2">
-                  {interviewData.skills.map((skill, index) => (
+                  {interviewData.skills.split(",").map((skill, index) => (
                     <Badge key={index} variant="outline">{skill}</Badge>
                   ))}
                 </div>
               </div>
             </CardContent>
-            <CardFooter>
+            {/* <CardFooter>
               {interviewData.status === 'upcoming' && (
                 <div className="flex justify-between items-center w-full">
                   <Button variant="outline" className="gap-2" onClick={handleSendReminder}>
@@ -179,19 +172,19 @@ Responsibilities:
                   </Button>
                 </div>
               )}
-            </CardFooter>
+            </CardFooter> */}
           </Card>
           
           <Tabs defaultValue="job" className="animate-fade-in delay-100">
             <TabsList>
               <TabsTrigger value="job">Job Description</TabsTrigger>
-              <TabsTrigger value="candidate">Candidate</TabsTrigger>
-              <TabsTrigger value="questions">Interview Questions</TabsTrigger>
+              {/* <TabsTrigger value="candidate">Candidate</TabsTrigger> */}
+              {/* <TabsTrigger value="questions">Resume</TabsTrigger> */}
             </TabsList>
             <TabsContent value="job" className="space-y-4 mt-4">
               <Card>
                 <CardContent className="pt-6">
-                  <p className="whitespace-pre-line">{interviewData.jobDescription}</p>
+                  <p className="whitespace-pre-line">{interviewData.job_desc}</p>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -201,31 +194,31 @@ Responsibilities:
                   <div className="flex items-center gap-4">
                     <Avatar className="h-14 w-14">
                       <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                        {interviewData.candidateName.split(' ').map(n => n[0]).join('')}
+                        {interviewData.name.split(' ').map(n => n[0]).join('')}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h3 className="font-semibold text-lg">{interviewData.candidateName}</h3>
-                      <p className="text-muted-foreground">Applying for {interviewData.jobTitle}</p>
+                      <h3 className="font-semibold text-lg">{interviewData.name}</h3>
+                      <p className="text-muted-foreground">Applying for {interviewData.role}</p>
                     </div>
                   </div>
                   
                   <Separator />
                   
-                  <div>
+                  {/* <div>
                     <h4 className="font-medium mb-2">Notes</h4>
                     <p>{interviewData.candidateNotes}</p>
-                  </div>
+                  </div> */}
                   
                   <div className="bg-slate-50 p-4 rounded-md border border-dashed flex justify-between items-center">
-                    <div className="flex items-center gap-2">
+                    {/* <div className="flex items-center gap-2">
                       <FileText className="h-5 w-5 text-slate-400" />
                       <span className="font-medium">resume_alex_johnson.pdf</span>
                     </div>
                     <Button variant="ghost" size="sm">
                       <Download className="h-4 w-4 mr-2" />
                       Download
-                    </Button>
+                    </Button> */}
                   </div>
                 </CardContent>
               </Card>
@@ -271,7 +264,7 @@ Responsibilities:
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {interviewData.skills.map((skill, index) => (
+                  {interviewData.skills.split(",").map((skill, index) => (
                     <div key={index}>
                       <div className="flex justify-between mb-1">
                         <span>{skill}</span>
@@ -287,7 +280,7 @@ Responsibilities:
         </div>
         
         <div className="space-y-6">
-          <Card className="animate-fade-in">
+          {/* <Card className="animate-fade-in">
             <CardHeader>
               <CardTitle>Candidate Profile</CardTitle>
             </CardHeader>
@@ -362,7 +355,7 @@ Responsibilities:
                 </Link>
               </Button>
             </CardFooter>
-          </Card>
+          </Card> */}
           
           <Card className="animate-fade-in delay-100">
             <CardHeader>

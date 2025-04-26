@@ -98,10 +98,10 @@ const AppSidebar = () => {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
-              <MenuLink href="/settings">
+              {/* <MenuLink href="/settings">
                 <Settings className="h-5 w-5" />
                 <span>Settings</span>
-              </MenuLink>
+              </MenuLink> */}
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

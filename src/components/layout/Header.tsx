@@ -66,7 +66,7 @@ const Header = ({ transparent = false, hideDropdown = false }: HeaderProps) => {
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar>
                     <AvatarFallback className="bg-aiblue-100 text-aiblue-700">
-                      JP
+                      R
                     </AvatarFallback>
                   </Avatar>
                 </Button>
