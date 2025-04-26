@@ -25,14 +25,14 @@ import {
 
 const AppSidebar = () => {
   const menuItems = [
-    {
-      title: 'Dashboard',
-      icon: LayoutDashboard,
-      href: '/dashboard'
-    },
+    // {
+    //   title: 'Dashboard',
+    //   icon: LayoutDashboard,
+    //   href: '/dashboard'
+    // },
     {
       title: 'Interviews',
-      icon: Users,
+      icon: LayoutDashboard,
       href: '/interviews'
     },
     {

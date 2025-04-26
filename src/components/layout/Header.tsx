@@ -60,12 +60,12 @@ const Header = ({ transparent = false }: HeaderProps) => {
           </Link>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="relative">
+          {/* <Button variant="ghost" size="icon" className="relative">
             <Bell className="h-5 w-5" />
             <span className="absolute -top-1 -right-1 w-4 h-4 bg-aiorange-500 text-white rounded-full text-xs flex items-center justify-center">
               3
             </span>
-          </Button>
+          </Button> */}
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
