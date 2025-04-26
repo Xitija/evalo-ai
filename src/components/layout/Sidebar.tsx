@@ -40,11 +40,11 @@ const AppSidebar = () => {
       icon: FileText,
       href: '/interviews/new'
     },
-    {
-      title: 'Schedule',
-      icon: Calendar,
-      href: '/schedule'
-    },
+    // {
+    //   title: 'Schedule',
+    //   icon: Calendar,
+    //   href: '/schedule'
+    // },
     {
       title: 'Reports',
       icon: CheckCircle,
