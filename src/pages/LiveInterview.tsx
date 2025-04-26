@@ -1,21 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from '@/components/ui/card';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
-import { Textarea } from '@/components/ui/textarea';
-import { 
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -27,75 +19,122 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
-import { 
-  Clock, 
-  Mic, 
-  MicOff,
-  ThumbsUp,
-  ThumbsDown,
-  CheckCircle,
-  Save,
-  ChevronRight,
-  Download,
-  X
-} from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Clock, ChevronRight, X } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import axios from 'axios';
+
+const ASSEMBLY_AI_API_KEY = process.env.VITE_ASSEMBLY_AI_API_KEY; // Replace with your actual API key
+const TRANSCRIPTION_INTERVAL = 60000; // 30 seconds in milliseconds
+const SUGGESTION_API_URL = `${process.env.VITE_API_BASE_URL}/suggestions`; // Your suggestion API endpoint
 
 const LiveInterview = () => {
-  const [isRecording, setIsRecording] = useState(true);
+  const [meetingId, setMeetingId] = useState(null);
+  const { id } = useParams();
+  const [isStarted, setIsStarted] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [questionIndex, setQuestionIndex] = useState(0);
-  const [notes, setNotes] = useState('');
-  const [transcriptLines, setTranscriptLines] = useState<{ speaker: string; text: string; timestamp: string }[]>([]);
   const navigate = useNavigate();
-  
-  // Mock interview data
-  const candidateName = "Alex Johnson";
-  const jobTitle = "Senior Frontend Developer";
-  const interviewDuration = 30 * 60; // 30 minutes in seconds
-  
-  const suggestedQuestions = [
-    "Can you describe your experience with React hooks and functional components?",
-    "How do you approach state management in large applications?",
-    "Tell me about a challenging technical problem you solved recently.",
-    "How do you ensure your code is maintainable and scalable?",
-    "What strategies do you use for optimizing frontend performance?",
-    "How do you test your React components?",
-    "Can you explain your understanding of accessibility in web applications?",
-    "How do you keep up with the latest frontend developments?",
-  ];
-  
-  const skillMeters = [
-    { name: "React", value: 75 },
-    { name: "JavaScript", value: 82 },
-    { name: "Problem Solving", value: 68 },
-    { name: "Communication", value: 88 },
-  ];
+  const [meetingDetails, setMeetingDetails] = useState<any>(null);
+  const [questionSets, setQuestionSets] = useState<any[]>([]);
+  const [transcription, setTranscription] = useState<string>('');
 
-  // Mock transcript generation
+  const interviewDuration = 30 * 60; // 30 minutes in seconds
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
+  const isRecordingRef = useRef(false);
+  const suggestionUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
+
+  const fetchMeetingDetails = useCallback(async (meetingId: string) => {
+    try {
+      const response = await axios.get(`${process.env.VITE_API_BASE_URL}/meeting/${meetingId}`);
+      setMeetingDetails(response.data);
+      const questions = response.data.meeting.expected_questions
+        .split(/\n\n/)
+        .map(q => q.trim());
+      setQuestionSets(questions);
+    } catch (error: any) {
+      console.error('Error fetching meeting details:', error);
+      toast({
+        title: "Failed to load meeting",
+        description: "Please check the meeting link or try again.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  const fetchSuggestedQuestions = useCallback(async (currentTranscript: string) => {
+    if (meetingDetails?.meeting && isStarted) { // Only fetch if interview is started
+      try {
+        const response = await axios.post(SUGGESTION_API_URL, {
+          id: meetingDetails.meeting.id,
+          role: meetingDetails.meeting.role,
+          job_desc: meetingDetails.meeting.job_desc,
+          experience: meetingDetails.meeting.experience,
+          skills: meetingDetails.meeting.skills,
+          transcript: currentTranscript,
+        });
+        if (response.data && Array.isArray(response.data.expected_questions)) {
+          // Update the suggestedQuestions state with the new suggestions
+          setSuggestedQuestions(prevQuestions => [
+            ...prevQuestions,
+            ...response.data.expected_questions,
+          ]);
+        } else {
+          console.warn('Invalid format for suggested questions:', response.data);
+        }
+      } catch (error: any) {
+        console.error('Error fetching suggested questions:', error);
+        toast({
+          title: "Failed to get suggestions",
+          description: "Could not fetch suggested questions.",
+          variant: "default",
+        });
+      }
+    }
+  }, [meetingDetails, isStarted, toast]);
+
+  const stopRecording = useCallback(async () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    isRecordingRef.current = false;
+    if (intervalIdRef.current) {
+      clearInterval(intervalIdRef.current);
+      intervalIdRef.current = null;
+    }
+    // Send any remaining audio as final if the interview was started
+    if (audioChunksRef.current.length > 0 && isStarted) {
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      await sendToAssemblyAI(audioBlob, true);
+      audioChunksRef.current = [];
+    }
+  }, [isStarted, toast]);
+
   useEffect(() => {
-    const mockTranscript = [
-      { speaker: "Interviewer", text: "Thanks for joining us today. Can you tell me a bit about your experience with React?", timestamp: "00:00:15" },
-      { speaker: "Candidate", text: "I've been working with React for about 4 years now. I started at a startup where I built their customer dashboard from scratch using React and Redux.", timestamp: "00:00:22" },
-      { speaker: "Interviewer", text: "That's great. What about hooks? Have you migrated from class components to functional components with hooks?", timestamp: "00:01:05" },
-      { speaker: "Candidate", text: "Yes, absolutely. In my current role, I led a project to refactor our legacy components to use hooks. It reduced our bundle size by about 15% and made the code much more readable.", timestamp: "00:01:12" },
-      { speaker: "Interviewer", text: "How do you approach state management in large React applications?", timestamp: "00:02:30" },
-      { speaker: "Candidate", text: "It depends on the complexity. For simpler apps, Context API and useState can be sufficient. For more complex state, I've used Redux but lately I've been favoring React Query for server state and Zustand for client state.", timestamp: "00:02:38" },
-    ];
-    
-    const timer = setTimeout(() => {
-      setTranscriptLines(mockTranscript);
-    }, 1500);
-    
-    return () => clearTimeout(timer);
-  }, []);
-  
-  // Timer effect
+    if (id) {
+      setMeetingId(id);
+      fetchMeetingDetails(id);
+    }
+
+    return () => {
+      stopRecording();
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current);
+      }
+      if (suggestionUpdateIntervalRef.current) {
+        clearInterval(suggestionUpdateIntervalRef.current);
+      }
+    };
+  }, [id, fetchMeetingDetails, stopRecording]);
+
+  // Timer effect and start/stop recording
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (isRecording) {
+    if (isStarted) {
       timer = setInterval(() => {
         setElapsedTime(prev => {
           if (prev < interviewDuration) {
@@ -104,52 +143,212 @@ const LiveInterview = () => {
           return prev;
         });
       }, 1000);
+      startRecording();
+      suggestionUpdateIntervalRef.current = setInterval(() => {
+        if (transcription) {
+          fetchSuggestedQuestions(transcription);
+        }
+      }, 60000); // Update suggestions every 60 seconds (adjust as needed)
+    } else {
+      if (timer) clearInterval(timer);
+      stopRecording();
+      if (suggestionUpdateIntervalRef.current) {
+        clearInterval(suggestionUpdateIntervalRef.current);
+        suggestionUpdateIntervalRef.current = null;
+      }
     }
-    
+
     return () => {
       if (timer) clearInterval(timer);
+      if (suggestionUpdateIntervalRef.current) {
+        clearInterval(suggestionUpdateIntervalRef.current);
+      }
     };
-  }, [isRecording, interviewDuration]);
+  }, [isStarted, transcription, fetchSuggestedQuestions, stopRecording]);
 
-  // Format time from seconds to MM:SS
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
-  
-  const handleToggleRecording = () => {
-    setIsRecording(prev => !prev);
-    
-    if (isRecording) {
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      isRecordingRef.current = true;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        if (audioChunksRef.current.length > 0 && isStarted) { // Only send if interview is still ongoing
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          await sendToAssemblyAI(audioBlob);
+          audioChunksRef.current = [];
+        }
+      };
+
+      mediaRecorder.start();
+
+      intervalIdRef.current = setInterval(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording' && isStarted) {
+          mediaRecorderRef.current.stop();
+          mediaRecorderRef.current.start();
+        }
+      }, TRANSCRIPTION_INTERVAL);
+    } catch (error: any) {
+      console.error('Error starting recording:', error);
       toast({
-        title: "Recording paused",
-        description: "The interview recording has been paused.",
-      });
-    } else {
-      toast({
-        title: "Recording resumed",
-        description: "The interview recording has been resumed.",
+        title: "Recording failed to start",
+        description: "Please ensure microphone access is granted.",
+        variant: "destructive",
       });
     }
+  }, [isStarted, toast]);
+
+
+  const sendToAssemblyAI = useCallback(async (audioBlob: Blob, isFinal: boolean = false) => {
+    if (!ASSEMBLY_AI_API_KEY || ASSEMBLY_AI_API_KEY === 'YOUR_ASSEMBLY_AI_API_KEY') {
+      console.warn('AssemblyAI API key is not set.');
+      toast({
+        title: "Transcription disabled",
+        description: "Please set your AssemblyAI API key to enable transcription.",
+        variant: "default", // Ensure your toast component supports "warning"
+      });
+      return;
+    }
+
+    if (!isStarted && !isFinal) {
+      return; // Do not send API calls if the interview has stopped and it's not the final send
+    }
+
+    try {
+      // Step 1: Upload audio
+      const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
+        method: 'POST',
+        headers: { authorization: ASSEMBLY_AI_API_KEY },
+        body: audioBlob,
+      });
+
+      const { upload_url } = await uploadResponse.json();
+      console.log('Uploaded audio URL:', upload_url);
+
+      // Step 2: Request transcription
+      const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
+        method: 'POST',
+        headers: {
+          authorization: ASSEMBLY_AI_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ audio_url: upload_url }),
+      });
+
+      const transcriptData = await transcriptResponse.json();
+      console.log('Transcription requested with ID:', transcriptData.id);
+
+      // Step 3: Polling for result (with modifications for interval and final)
+      let completedTranscript = null;
+      while (!completedTranscript && !isFinal && isStarted) { // Check if interview is still started
+        const pollingResponse = await fetch(
+          `https://api.assemblyai.com/v2/transcript/${transcriptData.id}`,
+          {
+            headers: { authorization: ASSEMBLY_AI_API_KEY },
+          }
+        );
+        const pollingData = await pollingResponse.json();
+        if (pollingData.status === 'completed') {
+          completedTranscript = pollingData.text;
+          console.log('Partial Transcript:', completedTranscript);
+          setTranscription(prev => prev + (prev ? ' ' : '') + completedTranscript);
+          fetchSuggestedQuestions(completedTranscript); // Call your backend API
+          break; // Break after getting a completed partial transcript for this interval
+        } else if (pollingData.status === 'failed') {
+          console.error('Transcription failed:', pollingData.error);
+          break;
+        }
+        await new Promise((res) => setTimeout(res, 3000));
+      }
+
+      // For the final transcript
+      if (isFinal && transcriptData.id) {
+        let finalTranscript = null;
+        while (!finalTranscript) {
+          const finalPollingResponse = await fetch(
+            `https://api.assemblyai.com/v2/transcript/${transcriptData.id}`,
+            {
+              headers: { authorization: ASSEMBLY_AI_API_KEY },
+            }
+          );
+          const finalPollingData = await finalPollingResponse.json();
+          if (finalPollingData.status === 'completed') {
+            finalTranscript = finalPollingData.text;
+            console.log('Final Transcript:', finalTranscript);
+            setTranscription(prev => prev + (prev ? ' ' : '') + finalTranscript);
+            fetchSuggestedQuestions(finalTranscript); // Send the final full transcript
+            toast({
+              title: "Transcription complete",
+              description: "The interview audio has been transcribed.",
+            });
+            break;
+          } else if (finalPollingData.status === 'failed') {
+            console.error('Final transcription failed:', finalPollingData.error);
+            toast({
+              title: "Transcription failed",
+              description: "Failed to transcribe the interview audio.",
+              variant: "destructive",
+            });
+            break;
+          }
+          await new Promise((res) => setTimeout(res, 3000));
+        }
+      }
+    } catch (error: any) {
+      console.error('Error sending audio to AssemblyAI:', error);
+      toast({
+        title: "Transcription error",
+        description: "An error occurred while sending audio for transcription.",
+        variant: "destructive",
+      });
+    }
+  }, [ASSEMBLY_AI_API_KEY, id, isStarted, fetchSuggestedQuestions, toast]);
+
+  const handleStartInterview = () => {
+    setIsStarted(true);
+    setTranscription(''); // Clear any previous transcription
+    setSuggestedQuestions([]); // Clear any previous suggestions
+    toast({
+      title: "Interview started",
+      description: "The interview timer and recording have begun.",
+    });
   };
-  
+
   const handleNextQuestion = () => {
     if (questionIndex < suggestedQuestions.length - 1) {
       setQuestionIndex(prev => prev + 1);
     }
   };
-  
+
   const handlePreviousQuestion = () => {
     if (questionIndex > 0) {
       setQuestionIndex(prev => prev - 1);
     }
   };
-  
+
   const handleEndInterview = () => {
-    navigate('/interview-insights/1');
+    setIsStarted(false); // This will trigger the stopRecording effect
+    if (suggestionUpdateIntervalRef.current) {
+      clearInterval(suggestionUpdateIntervalRef.current);
+      suggestionUpdateIntervalRef.current = null;
+    }
+    navigate(`/interview-insights/${id}`);
   };
-  
+
   const remainingTime = interviewDuration - elapsedTime;
   const timeRemainingPercent = (remainingTime / interviewDuration) * 100;
 
@@ -160,48 +359,32 @@ const LiveInterview = () => {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
             <div className="flex flex-col">
-              <h1 className="font-bold text-lg">{candidateName}</h1>
-              <p className="text-sm text-muted-foreground">{jobTitle}</p>
+              <h1 className="font-bold text-lg">{meetingDetails?.meeting?.name}</h1>
+              <p className="text-sm text-muted-foreground">{meetingDetails?.meeting?.role}</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="flex flex-col items-end">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">{formatTime(elapsedTime)} / {formatTime(interviewDuration)}</span>
               </div>
-              <Progress 
-                value={timeRemainingPercent} 
+              <Progress
+                value={timeRemainingPercent}
                 className={`h-1.5 w-32 ${remainingTime < 300 ? "bg-aiorange-500" : ""}`}
               />
             </div>
-            
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant={isRecording ? "default" : "outline"}
-                    size="sm"
-                    onClick={handleToggleRecording}
-                  >
-                    {isRecording ? (
-                      <Mic className="h-4 w-4 mr-1" />
-                    ) : (
-                      <MicOff className="h-4 w-4 mr-1" />
-                    )}
-                    {isRecording ? "Recording" : "Paused"}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isRecording ? "Pause recording" : "Resume recording"}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            
+
+            {!isStarted && (
+              <Button variant="default" size="sm" onClick={handleStartInterview}>
+                Start Interview
+              </Button>
+            )}
+
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
+                <Button variant="destructive" size="sm" disabled={!isStarted}>
                   <X className="h-4 w-4 mr-1" />
                   End Interview
                 </Button>
@@ -210,7 +393,7 @@ const LiveInterview = () => {
                 <AlertDialogHeader>
                   <AlertDialogTitle>End this interview?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will stop the recording and take you to the interview insights. You can't undo this action.
+                    This will stop the interview and the recording. You will be taken to the interview insights. You can't undo this action.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -224,49 +407,32 @@ const LiveInterview = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Left Panel - Transcription */}
+        {/* Left Panel - Questions */}
         <div className="w-full md:w-1/2 bg-white p-4 flex flex-col h-full overflow-hidden">
           <div className="flex justify-between items-center mb-3">
-            <h2 className="font-semibold text-lg">Live Transcription</h2>
-            <Button variant="ghost" size="sm">
-              <Download className="h-4 w-4 mr-1" />
-              Save Transcript
-            </Button>
+            <h2 className="font-semibold text-lg">Interview Questions</h2>
           </div>
-          
           <ScrollArea className="flex-1 pr-4">
             <div className="space-y-4">
-              {transcriptLines.map((line, index) => (
-                <div key={index} className="space-y-1 animate-fade-in">
-                  <div className="flex justify-between">
-                    <span className={`font-medium ${line.speaker === "Interviewer" ? "text-aiblue-700" : "text-aipurple-700"}`}>
-                      {line.speaker}
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      {line.timestamp}
-                    </span>
+              {questionSets.length > 0 ? (
+                questionSets.map((question, index) => (
+                  <div key={index} className="space-y-1 animate-fade-in">
+                    <p className="text-slate-700">{question}</p>
                   </div>
-                  <p className="text-slate-700">{line.text}</p>
-                </div>
-              ))}
-              
-              {isRecording && (
-                <div className="flex items-center gap-2 text-slate-500 animate-pulse">
-                  <div className="w-2 h-2 bg-aisuccess-500 rounded-full"></div>
-                  <span>Recording...</span>
-                </div>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground">Loading questions...</p>
               )}
             </div>
           </ScrollArea>
         </div>
-        
+
         {/* Right Panel - AI Assistant */}
         <div className="w-full md:w-1/2 h-full overflow-y-auto">
           <div className="grid grid-cols-1 gap-6 p-4">
-            {/* AI Suggestions */}
             <Card className="border-aipurple-100 shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -278,45 +444,18 @@ const LiveInterview = () => {
                   <div className="bg-aipurple-50 border border-aipurple-100 p-3 rounded-md">
                     <p className="font-medium">{suggestedQuestions[questionIndex]}</p>
                   </div>
-                  
+
                   <div className="flex justify-between">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={handlePreviousQuestion}
                       disabled={questionIndex === 0}
                     >
                       Previous
                     </Button>
-                    <div className="flex gap-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <ThumbsUp className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Good question
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <ThumbsDown className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Not relevant
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={handleNextQuestion}
                       disabled={questionIndex === suggestedQuestions.length - 1}
@@ -326,70 +465,6 @@ const LiveInterview = () => {
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-            
-            {/* Skill Meters */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Skill Assessment</CardTitle>
-                <CardDescription>Real-time analysis based on answers</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {skillMeters.map((skill) => (
-                    <div key={skill.name} className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span>{skill.name}</span>
-                        <span className="font-medium">{skill.value}%</span>
-                      </div>
-                      <Progress value={skill.value} className="h-2" />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* Highlighted Points */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Highlighted Points</CardTitle>
-                <CardDescription>Key insights from the conversation</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-aisuccess-500 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm">Strong experience with React hooks and functional components</p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-aisuccess-500 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm">Successfully led refactoring project that improved performance</p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-aisuccess-500 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm">Good knowledge of modern state management approaches</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* Notes */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Your Notes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Textarea 
-                  placeholder="Add private notes about the candidate..." 
-                  className="min-h-32"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-                <Button variant="outline" size="sm" className="mt-3" onClick={() => toast({ title: "Notes saved" })}>
-                  <Save className="h-4 w-4 mr-1" />
-                  Save Notes
-                </Button>
               </CardContent>
             </Card>
           </div>

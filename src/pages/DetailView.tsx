@@ -81,7 +81,7 @@ Responsibilities:
         <div className="flex flex-wrap gap-2">
           {interviewData.status === 'upcoming' && (
             <Button asChild>
-              <Link to="/interview/live/1">
+              <Link to="/interview/live/1"> // change the harcoded to meeting-id from route
                 Start Interview
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
