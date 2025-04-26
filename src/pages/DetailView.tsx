@@ -74,7 +74,7 @@ const DetailView = () => {
         <div className="flex flex-wrap gap-2">
           {/* {interviewData.status === 'upcoming' && ( */}
             <Button asChild>
-              <Link to="/interview/live/1">
+              <Link to={`/interview/live/${interviewData.id}`}>
                 Start Interview
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
@@ -82,7 +82,7 @@ const DetailView = () => {
           {/* )} */}
           {interviewData.status === 'completed' && (
             <Button asChild variant="outline">
-              <Link to="/interview-insights/1">
+              <Link to={`/interviews/${interviewData.id}`}>
                 View Report
               </Link>
             </Button>
